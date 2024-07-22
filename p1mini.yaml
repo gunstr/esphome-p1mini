@@ -44,8 +44,9 @@ ethernet:
 external_components:
   - source: components
 
-dallas:
-  - pin: GPIO32
+one_wire:
+  - platform: gpio
+    pin: GPIO32
 
 switch:
   # - platform: gpio
@@ -144,7 +145,7 @@ p1_mini:
   #     - switch.turn_off: status_led
 
 sensor:
-  - platform: dallas
+  - platform: dallas_temp
     address: 0x2703168660f3ff28
     name: "Garage temperatur"
     id: temperature_garage
@@ -154,7 +155,7 @@ sensor:
         send_every: 5
         send_first_at: 3
 
-  - platform: dallas
+  - platform: dallas_temp
     address: 0x840416900fe2ff28
     name: "Garage heat loop in"
     id: garage_heat_loop_in
@@ -164,7 +165,7 @@ sensor:
         send_every: 5
         send_first_at: 3
 
-  - platform: dallas
+  - platform: dallas_temp
     address: 0xa5051688087eff28
     name: "Garage heat loop out"
     id: garage_heat_loop_out
