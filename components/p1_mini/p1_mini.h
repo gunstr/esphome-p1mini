@@ -86,7 +86,9 @@ namespace esphome {
             int m_num_message_loops{ 0 };
             int m_num_processing_loops{ 0 };
             bool m_display_time_stats{ false };
-            uint32_t obis_code{ 0x00 };
+            uint32_t m_time_stats_as_info_next{ 4 }; // 0 to disable
+            uint32_t m_time_stats_counter{ 0 };
+            uint32_t m_obis_code{ 0 };
 
             // Store the message as it is being received:
             std::unique_ptr<char> m_message_buffer_UP;

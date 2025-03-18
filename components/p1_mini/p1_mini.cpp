@@ -326,7 +326,7 @@ namespace esphome {
                     case 0x06: {// unsigned double long
                         uint32_t v = (*(m_start_of_data + 1) << 24 | *(m_start_of_data + 2) << 16 | *(m_start_of_data + 3) << 8 | *(m_start_of_data + 4));
                         float fv = v * 1.0 / 1000;
-                        auto iter{ m_sensors.find(obis_code) };
+                        auto iter{ m_sensors.find(m_obis_code) };
                         if (iter != m_sensors.end()) iter->second->publish_val(fv);
                         m_start_of_data += 1 + 4;
                         break;
@@ -338,7 +338,7 @@ namespace esphome {
                             minor = *(m_start_of_data + 5);
                             micro = *(m_start_of_data + 6);
 
-                            obis_code = OBIS(major, minor, micro);
+                            m_obis_code = OBIS(major, minor, micro);
                         }
                         m_start_of_data += 2 + (int)*(m_start_of_data + 1);
                         break;
@@ -354,7 +354,7 @@ namespace esphome {
                     case 0x10: {// unsigned long
                         uint16_t v = (*(m_start_of_data + 1) << 8 | *(m_start_of_data + 2));
                         float fv = v * 1.0 / 10;
-                        auto iter{ m_sensors.find(obis_code) };
+                        auto iter{ m_sensors.find(m_obis_code) };
                         if (iter != m_sensors.end()) iter->second->publish_val(fv);
                         m_start_of_data += 3;
                         break;
@@ -362,7 +362,7 @@ namespace esphome {
                     case 0x12: {// signed long
                         int16_t v = (*(m_start_of_data + 1) << 8 | *(m_start_of_data + 2));
                         float fv = v * 1.0 / 10;
-                        auto iter{ m_sensors.find(obis_code) };
+                        auto iter{ m_sensors.find(m_obis_code) };
                         if (iter != m_sensors.end()) iter->second->publish_val(fv);
                         m_start_of_data += 3;
                         break;
@@ -385,14 +385,27 @@ namespace esphome {
             case states::WAITING:
                 if (m_display_time_stats) {
                     m_display_time_stats = false;
-                    ESP_LOGD(TAG, "Cycle times: Identifying = %d ms, Message = %d ms (%d loops), Processing = %d ms (%d loops), (Total = %d ms). %d bytes in buffer",
-                        m_reading_message_time - m_identifying_message_time,
-                        m_processing_time - m_reading_message_time,
-                        m_num_message_loops,
-                        m_waiting_time - m_processing_time,
-                        m_num_processing_loops,
-                        m_waiting_time - m_identifying_message_time,
-                        m_message_buffer_position
+                    if (m_time_stats_as_info_next == ++m_time_stats_counter) {
+                        m_time_stats_as_info_next <<= 1;
+                        ESP_LOGI(TAG, "Cycle times: Identifying = %d ms, Message = %d ms (%d loops), Processing = %d ms (%d loops), (Total = %d ms). %d bytes in buffer",
+                            m_reading_message_time - m_identifying_message_time,
+                            m_processing_time - m_reading_message_time,
+                            m_num_message_loops,
+                            m_waiting_time - m_processing_time,
+                            m_num_processing_loops,
+                            m_waiting_time - m_identifying_message_time,
+                            m_message_buffer_position
+                        );
+                    }
+                    else
+                        ESP_LOGD(TAG, "Cycle times: Identifying = %d ms, Message = %d ms (%d loops), Processing = %d ms (%d loops), (Total = %d ms). %d bytes in buffer",
+                            m_reading_message_time - m_identifying_message_time,
+                            m_processing_time - m_reading_message_time,
+                            m_num_message_loops,
+                            m_waiting_time - m_processing_time,
+                            m_num_processing_loops,
+                            m_waiting_time - m_identifying_message_time,
+                            m_message_buffer_position
                     );
                 }
                 if (m_min_period_ms == 0 || m_min_period_ms < loop_start_time - m_identifying_message_time) {
