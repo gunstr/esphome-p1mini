@@ -61,11 +61,27 @@ external_components:
 
 light:
   - platform: neopixelbus
-    type: RGB
+    type: RGB              # Some clone boards have color in a different order, such as GRB!
     variant: WS2812
     pin: GPIO10
     num_leds: 1
     id: status_light
+
+script:
+  - id: status_light_color
+    parameters:
+      param_brightness: float
+      param_red: float
+      param_green: float
+      param_blue: float
+    then:
+      - light.turn_on:
+          id: status_light
+          brightness: !lambda return param_brightness;
+          red:        !lambda return param_red;
+          green:      !lambda return param_green;
+          blue:       !lambda return param_blue;
+          transition_length: 0s
 
 switch:
   - platform: gpio
@@ -97,63 +113,27 @@ p1_mini:
     on_ready_to_receive:
       then:
         - switch.turn_on: p1_rts
-        - light.turn_on:
-            id: status_light
-            brightness: 33%
-            red: 0%
-            green: 0%
-            blue: 100%
-            transition_length: 0s
+        - lambda: id(status_light_color)->execute(0.33f, 0.0f, 0.0f, 1.0f); # Blue
     on_receiving_update:
       then:
-        - light.turn_on:
-            id: status_light
-            brightness: 25%
-            red: 100%
-            green: 100%
-            blue: 100%
-            transition_length: 0s
+        - lambda: id(status_light_color)->execute(0.25f, 1.0f, 1.0f, 1.0f); # White
     on_update_received:
       then:
         - switch.turn_off: p1_rts
-        - light.turn_on:
-            id: status_light
-            brightness: 30%
-            red: 100%
-            green: 80%
-            blue: 0%
-            transition_length: 0s
+        - lambda: id(status_light_color)->execute(0.30f, 1.0f, 0.8f, 0.0f); # Yellow/Orange
     on_update_processed:
       then:
         if:
           condition:
             wifi.connected:
           then:
-            - light.turn_on:
-                id: status_light
-                brightness: 33%
-                red: 0%
-                green: 100%
-                blue: 0%
-                transition_length: 0s
+            - lambda: id(status_light_color)->execute(0.33f, 0.0f, 1.0f, 0.0f); # Green
           else:
-            - light.turn_on:
-                id: status_light
-                brightness: 30%
-                red: 100%
-                green: 0%
-                blue: 75%
-                transition_length: 0s
+            - lambda: id(status_light_color)->execute(0.40f, 1.0f, 0.0f, 0.8f); # Purple
     on_communication_error:
       then:
         - switch.turn_off: p1_rts
-        - light.turn_on:
-            id: status_light
-            brightness: 50%
-            red: 100%
-            green: 0%
-            blue: 0%
-            transition_length: 0s
+        - lambda: id(status_light_color)->execute(0.50f, 1.0f, 0.0f, 0.0f); # Red
 #  - id: p1_mini_2
 #    uart_id: my_uart_2
 #    ...

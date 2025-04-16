@@ -12,7 +12,7 @@ It is possible to attach another P1 reading device in case you need to connect a
 ![Secondary port pins](../images/secondary_pins.png)
 
 > [!NOTE]  
-> Since the RTS signal is currenty ignored, only the TX and GND pins need to be connected. TX -> TX and GND -> Data GND.
+> Since the RTS signal is currenty ignored, only the TX and GND pins need to be connected. TX -> TX and GND -> Data GND. (TX -> GPIO1 on the ESP32-C3-Zero) 
 
 The LED will, in addition to providing visual indication that updates are beeing requested on the port, ensure that the voltage on D0 will not get high enough to damage the D1 mini. The LED needs to have a high enough voltage drop for it to work and some colors may not work.
 

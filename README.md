@@ -9,7 +9,7 @@ Notable differences from esphome-p1reader are:
 * Code rewritten to not spend excessive amounts of time in calls to the `loop` function. This should ensure stable operation of ESPHome and might help prevent some serial communication issues.
 
 ## ESPHome version
-The current version is tested with ESPHome version `2025.2.2` and the yaml *will not work with versions earlier than `2024.6.0`*.
+The current version is tested with ESPHome version `2025.3.3` and the yaml *will not work with versions earlier than `2024.6.0`*.
 
 ## Verified meter hardware / supplier
 * [Sagemcom T211](https://www.ellevio.se/globalassets/content/el/elmatare-produktblad-b2c/ellevio_produktblad_fas3_t211_web2.pdf) / Ellevio, Skånska Energi
@@ -18,13 +18,11 @@ The current version is tested with ESPHome version `2025.2.2` and the yaml *will
 * [S34U18 (Sanxing SX631)](https://www.vattenfalleldistribution.se/matarbyte/nya-elmataren/) / Vattenfall - [But read this](docs/NO-RTS.md#s34u18-sanxing-sx631)
 * Kamstrup OMNIPOWER
 * [KAIFA MA304H4E](https://reko.nackaenergi.se/elmatarbyte/) (and MA304T4E) / Nacka Energi - [But read this](docs/NO-RTS.md#kaifa-ma304t4e--ma304h4e)
+* [SWEMET / Shenzhen Star - STZ351](https://www.veab.se/globalassets/dokumentarkiv/manualer-och-skotselrad/anvandarmanual-elmatare-3-fas.pdf) - Some meters are working fine while other seems to have an incorrectly formatted message and incorrectly calculated checksum. *If* you are having problems, look at [this discussion](https://github.com/Beaky2000/esphome-p1mini/issues/26) for a possible workaround.
 
 ## Meters verified with esphome-p1reader, which should work too...
 * [Itron A300](https://boraselnat.se/elnat/elmatarbyte-2020-2021/sa-har-fungerar-din-nya-elmatare/) / Borås Elnät
 * [KAIFA CL109](https://www.oresundskraft.se/dags-for-matarbyte/) / Öresundskraft
-
-## Meters with issues
-* [SWEMET / Shenzhen Star - STZ351](https://www.veab.se/globalassets/dokumentarkiv/manualer-och-skotselrad/anvandarmanual-elmatare-3-fas.pdf): Seems to have an incorrectly formatted message and incorrectly calculated checksum. A possible workaround is discussed [here](https://github.com/Beaky2000/esphome-p1mini/issues/26).
 
 ## Hardware
 ### Wemos D1 Mini
