@@ -11,7 +11,7 @@ Notable differences from esphome-p1reader are:
 * Code rewritten to not spend excessive amounts of time in calls to the `loop` function. This should ensure stable operation of ESPHome and might help prevent some serial communication issues.
 
 ## ESPHome version
-The current version is tested with ESPHome version `2025.4.0` and the yaml *will not work with versions earlier than `2024.6.0`*.
+The current version is tested with ESPHome version `2025.4.1` and the yaml *will not work with versions earlier than `2024.6.0`*.
 
 ## Verified meter hardware / supplier
 * [Sagemcom T211](https://www.ellevio.se/globalassets/content/el/elmatare-produktblad-b2c/ellevio_produktblad_fas3_t211_web2.pdf) / Ellevio, Skånska Energi
@@ -81,7 +81,11 @@ The file structure should include these files:
          |- p1_mini_text_sensor.h
 ```
 
-Flash ESPHome as usual, with the relevant files in place. *Don't* connect USB and the P1 port at the same time! If everything works, Home Assistant will autodetect the new integration after you plug it into the P1 port.
+Flash ESPHome as usual, with the relevant files in place. *Don't* connect USB and the P1 port at the same time!
+
+If everything works, Home Assistant will autodetect the new integration after you plug it into the P1 port:
+
+![In Home Assistant](images/inHA.png)
 
 ## Troubleshooting
 [Things to try if you are having problems](docs/troubleshooting.md). (Ideally before opening a GitHub Issue)
