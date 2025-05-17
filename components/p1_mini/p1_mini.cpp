@@ -1,6 +1,6 @@
 //-------------------------------------------------------------------------------------
 // ESPHome P1 Electricity Meter custom sensor
-// Copyright 2024 Johnny Johansson
+// Copyright 2025 Johnny Johansson
 // Copyright 2022 Erik Björk
 // Copyright 2020 Pär Svanström
 // 
@@ -9,7 +9,8 @@
 //  0.2.0 2022-04-13:   Major rewrite
 //  0.3.0 2022-04-23:   Passthrough to secondary P1 device
 //  0.4.0 2022-09-20:   Support binary format
-//  0.4.0 2022-09-20:   Rewritten as an ESPHome "external component"
+//  0.5.0 ????-??-??:   Rewritten as an ESPHome "external component"
+//  0.6.0 2025-01-04:   Introduced text sensors
 //
 // MIT License
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), 
@@ -50,7 +51,7 @@ namespace esphome {
                 while (std::isdigit(*C)) major = major * 10 + (*C++ - '0');
                 if (*C++ == '\0') return OBIS_ERROR;
                 while (std::isdigit(*C)) minor = minor * 10 + (*C++ - '0');
-                if (*C++ == '\0') return OBIS(major, minor, micro);
+                if (*C++ == '\0') return OBIS_ERROR;
                 while (std::isdigit(*C)) micro = micro * 10 + (*C++ - '0');
                 if (*C++ != '\0') return OBIS_ERROR;
                 return OBIS(major, minor, micro);
@@ -89,6 +90,12 @@ namespace esphome {
             : m_obis{ OBIS(obis_code.c_str()) }
         {
             if (m_obis == OBIS_ERROR) ESP_LOGE(TAG, "Not a valid OBIS code: '%s'", obis_code.c_str());
+        }
+
+        P1MiniTextSensorBase::P1MiniTextSensorBase(std::string identifier)
+            : m_identifier{ identifier }
+        {
+            //ESP_LOGI(TAG, "New text sensor: '%s'", identifier.c_str());
         }
 
         P1Mini::P1Mini(uint32_t min_period_ms, int buffer_size, bool secondary_p1)
@@ -136,7 +143,7 @@ namespace esphome {
                         m_data_format = data_formats::BINARY;
                     }
                     else {
-                        ESP_LOGW(TAG, "Unknown data format (0x%02X). Resetting.", read_byte);
+                        ESP_LOGW(TAG, "Unknown data format (0x%02x). Resetting.", read_byte);
                         ChangeState(states::ERROR_RECOVERY);
                         return;
                     }
@@ -263,7 +270,16 @@ namespace esphome {
                         int minor{ -1 }, major{ -1 }, micro{ -1 };
                         double value{ -1.0 };
                         if (sscanf(m_start_of_data, "1-0:%d.%d.%d(%lf", &major, &minor, &micro, &value) != 4) {
-                            ESP_LOGD(TAG, "Could not parse value from line '%s'", m_start_of_data);
+                            bool matched_text_sensor{ false };
+                            for (IP1MiniTextSensor *text_sensor : m_text_sensors) {
+                                if (strncmp(m_start_of_data, text_sensor->Identifier().c_str(), text_sensor->Identifier().size()) == 0) {
+                                    matched_text_sensor = true;
+                                    text_sensor->publish_val(m_start_of_data);
+                                    break;
+                                }
+                                
+                            }
+                            if (!matched_text_sensor) ESP_LOGD(TAG, "No sensor matched line '%s'", m_start_of_data);
                         }
                         else {
                             uint32_t const obisCode{ OBIS(major, minor, micro) };
@@ -310,7 +326,7 @@ namespace esphome {
                     case 0x06: {// unsigned double long
                         uint32_t v = (*(m_start_of_data + 1) << 24 | *(m_start_of_data + 2) << 16 | *(m_start_of_data + 3) << 8 | *(m_start_of_data + 4));
                         float fv = v * 1.0 / 1000;
-                        auto iter{ m_sensors.find(obis_code) };
+                        auto iter{ m_sensors.find(m_obis_code) };
                         if (iter != m_sensors.end()) iter->second->publish_val(fv);
                         m_start_of_data += 1 + 4;
                         break;
@@ -322,7 +338,7 @@ namespace esphome {
                             minor = *(m_start_of_data + 5);
                             micro = *(m_start_of_data + 6);
 
-                            obis_code = OBIS(major, minor, micro);
+                            m_obis_code = OBIS(major, minor, micro);
                         }
                         m_start_of_data += 2 + (int)*(m_start_of_data + 1);
                         break;
@@ -338,7 +354,7 @@ namespace esphome {
                     case 0x10: {// unsigned long
                         uint16_t v = (*(m_start_of_data + 1) << 8 | *(m_start_of_data + 2));
                         float fv = v * 1.0 / 10;
-                        auto iter{ m_sensors.find(obis_code) };
+                        auto iter{ m_sensors.find(m_obis_code) };
                         if (iter != m_sensors.end()) iter->second->publish_val(fv);
                         m_start_of_data += 3;
                         break;
@@ -346,7 +362,7 @@ namespace esphome {
                     case 0x12: {// signed long
                         int16_t v = (*(m_start_of_data + 1) << 8 | *(m_start_of_data + 2));
                         float fv = v * 1.0 / 10;
-                        auto iter{ m_sensors.find(obis_code) };
+                        auto iter{ m_sensors.find(m_obis_code) };
                         if (iter != m_sensors.end()) iter->second->publish_val(fv);
                         m_start_of_data += 3;
                         break;
@@ -369,18 +385,35 @@ namespace esphome {
             case states::WAITING:
                 if (m_display_time_stats) {
                     m_display_time_stats = false;
-                    ESP_LOGD(TAG, "Cycle times: Identifying = %d ms, Message = %d ms (%d loops), Processing = %d ms (%d loops), (Total = %d ms). %d bytes in buffer",
-                        m_reading_message_time - m_identifying_message_time,
-                        m_processing_time - m_reading_message_time,
-                        m_num_message_loops,
-                        m_waiting_time - m_processing_time,
-                        m_num_processing_loops,
-                        m_waiting_time - m_identifying_message_time,
-                        m_message_buffer_position
+                    if (m_time_stats_as_info_next == ++m_time_stats_counter) {
+                        m_time_stats_as_info_next <<= 1;
+                        ESP_LOGI(TAG, "Cycle times: Identifying = %d ms, Message = %d ms (%d loops), Processing = %d ms (%d loops), (Total = %d ms). %d bytes in buffer",
+                            m_reading_message_time - m_identifying_message_time,
+                            m_processing_time - m_reading_message_time,
+                            m_num_message_loops,
+                            m_waiting_time - m_processing_time,
+                            m_num_processing_loops,
+                            m_waiting_time - m_identifying_message_time,
+                            m_message_buffer_position
+                        );
+                    }
+                    else
+                        ESP_LOGD(TAG, "Cycle times: Identifying = %d ms, Message = %d ms (%d loops), Processing = %d ms (%d loops), (Total = %d ms). %d bytes in buffer",
+                            m_reading_message_time - m_identifying_message_time,
+                            m_processing_time - m_reading_message_time,
+                            m_num_message_loops,
+                            m_waiting_time - m_processing_time,
+                            m_num_processing_loops,
+                            m_waiting_time - m_identifying_message_time,
+                            m_message_buffer_position
                     );
                 }
-                if (m_min_period_ms < loop_start_time - m_identifying_message_time) {
+                if (m_min_period_ms == 0 || m_min_period_ms < loop_start_time - m_identifying_message_time) {
                     ChangeState(states::IDENTIFYING_MESSAGE);
+                }
+                else if (available()) {
+                    ESP_LOGE(TAG, "Data was received before beeing requested. If flow control via the RTS signal is not used, the minimum_period should be set to 0s in the yaml. Resetting.");
+                    ChangeState(states::ERROR_RECOVERY);
                 }
                 break;
             case states::ERROR_RECOVERY:
@@ -394,10 +427,6 @@ namespace esphome {
                 }
                 break;
             }
-
-
-
-
         }
 
         void P1Mini::ChangeState(enum states new_state)
@@ -413,6 +442,7 @@ namespace esphome {
                 break;
             case states::READING_MESSAGE:
                 m_reading_message_time = current_time;
+                for (auto T : m_receiving_update_triggers) T->trigger();
                 break;
             case states::VERIFYING_CRC:
                 m_verifying_crc_time = current_time;
@@ -424,7 +454,10 @@ namespace esphome {
                 m_start_of_data = m_message_buffer;
                 break;
             case states::WAITING:
-                if (m_state != states::ERROR_RECOVERY) m_display_time_stats = true;
+                if (m_state != states::ERROR_RECOVERY) {
+                    m_display_time_stats = true;
+                    for (auto T : m_update_processed_triggers) T->trigger();
+                }
                 m_waiting_time = current_time;
                 break;
             case states::ERROR_RECOVERY:
@@ -445,8 +478,8 @@ namespace esphome {
         void P1Mini::FlushDiscardLog()
         {
             if (m_discard_log_position != m_discard_log_buffer) {
-                ESP_LOGW(TAG, "Discarding: %s", m_discard_log_buffer);
                 *m_discard_log_position = '\0';
+                ESP_LOGW(TAG, "Discarding: %s", m_discard_log_buffer);
                 m_discard_log_position = m_discard_log_buffer;
             }
         }

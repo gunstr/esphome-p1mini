@@ -26,10 +26,27 @@ namespace esphome {
             virtual uint32_t Obis() const { return m_obis; }
         };
 
-        class ReadyToReceiveTrigger : public Trigger<> { };
-        class UpdateReceivedTrigger : public Trigger<> { };
-        class CommunicationErrorTrigger : public Trigger<> { };
+        class IP1MiniTextSensor
+        {
+        public:
+            virtual ~IP1MiniTextSensor() = default;
+            virtual void publish_val(std::string) = 0;
+            virtual std::string Identifier() const = 0;
+        };
 
+        class P1MiniTextSensorBase : public IP1MiniTextSensor
+        {
+            std::string const m_identifier;
+        public:
+            P1MiniTextSensorBase(std::string identifier);
+            virtual std::string Identifier() const { return m_identifier; }
+        };
+
+        class ReadyToReceiveTrigger : public Trigger<> { };
+        class ReceivingUpdateTrigger : public Trigger<> { };
+        class UpdateReceivedTrigger : public Trigger<> { };
+        class UpdateProcessedTrigger : public Trigger<> { };
+        class CommunicationErrorTrigger : public Trigger<> { };
 
         class P1Mini : public uart::UARTDevice, public Component {
         public:
@@ -44,8 +61,18 @@ namespace esphome {
                 m_sensors.emplace(sensor->Obis(), sensor);
             }
 
+            void register_text_sensor(IP1MiniTextSensor *sensor)
+            {
+                // Sort long identifiers first in the vector
+                auto iter{ m_text_sensors.begin() };
+                while (iter != m_text_sensors.end() && sensor->Identifier().size() < (*iter)->Identifier().size()) ++iter;
+                m_text_sensors.insert(iter, sensor);
+            }
+
             void register_ready_to_receive_trigger(ReadyToReceiveTrigger *trigger) { m_ready_to_receive_triggers.push_back(trigger); }
+            void register_receiving_update_trigger(ReceivingUpdateTrigger *trigger) { m_receiving_update_triggers.push_back(trigger); }
             void register_update_received_trigger(UpdateReceivedTrigger *trigger) { m_update_received_triggers.push_back(trigger); }
+            void register_update_processed_trigger(UpdateProcessedTrigger *trigger) { m_update_processed_triggers.push_back(trigger); }
             void register_communication_error_trigger(CommunicationErrorTrigger *trigger) { m_communication_error_triggers.push_back(trigger); }
 
         private:
@@ -59,7 +86,9 @@ namespace esphome {
             int m_num_message_loops{ 0 };
             int m_num_processing_loops{ 0 };
             bool m_display_time_stats{ false };
-            uint32_t obis_code{ 0x00 };
+            uint32_t m_time_stats_as_info_next{ 4 }; // 0 to disable
+            uint32_t m_time_stats_counter{ 0 };
+            uint32_t m_obis_code{ 0 };
 
             // Store the message as it is being received:
             std::unique_ptr<char> m_message_buffer_UP;
@@ -73,7 +102,7 @@ namespace esphome {
 
             char GetByte()
             {
-                char C{ static_cast<char>(read()) };
+                char const C{ static_cast<char>(read()) };
                 if (m_secondary_p1) write(C);
                 return C;
             }
@@ -102,8 +131,12 @@ namespace esphome {
             bool const m_secondary_p1;
 
             std::map<uint32_t, IP1MiniSensor *> m_sensors;
+            std::vector<IP1MiniTextSensor *> m_text_sensors; // Keep sorted so longer identifiers are first!
+            
             std::vector<ReadyToReceiveTrigger *> m_ready_to_receive_triggers;
+            std::vector<ReceivingUpdateTrigger *> m_receiving_update_triggers;
             std::vector<UpdateReceivedTrigger *> m_update_received_triggers;
+            std::vector<UpdateProcessedTrigger *> m_update_processed_triggers;
             std::vector<CommunicationErrorTrigger *> m_communication_error_triggers;
 
             constexpr static int discard_log_num_bytes{ 32 };
