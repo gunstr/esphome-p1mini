@@ -5,7 +5,8 @@ substitutions:
 
 esphome:
   name: ${device_name}
-
+  build_path: /home/gunnar/BuildFiles/esphome/build/${device_name}/
+  
 esp32:
   board: esp32-gateway
 
